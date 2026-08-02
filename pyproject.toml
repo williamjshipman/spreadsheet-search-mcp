@@ -1,0 +1,33 @@
+[project]
+name = "spreadsheet-search-mcp"
+version = "0.1.0"
+description = "An MCP server to enable searching large spreadsheets without loading the entire spreadsheet into an AI agent's context."
+readme = "README.md"
+authors = [
+    { name = "copilot-swe-agent[bot]", email = "198982749+Copilot@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "fastmcp>=2.0.0",
+    "pandas>=2.0.0",
+    "openpyxl>=3.0.0",
+    "xlrd>=2.0.0",
+]
+
+[project.scripts]
+spreadsheet-search-mcp = "spreadsheet_search_mcp.server:main"
+
+[build-system]
+requires = ["uv_build>=0.12.1,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
