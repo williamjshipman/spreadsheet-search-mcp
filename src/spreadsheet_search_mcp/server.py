@@ -227,17 +227,21 @@ def find_all(search: str) -> dict[str, Any]:
 
     for sheet in _sheet_order:
         df = _sheets[sheet]
-        for row_idx in range(len(df)):
-            for col_idx in range(len(df.columns)):
-                v = df.iloc[row_idx, col_idx]
-                if pd.notna(v) and needle in str(v).lower():
-                    results.append(
-                        CellRef(
-                            sheet=sheet,
-                            row=row_idx + 1,
-                            col=_col_idx_to_letter(col_idx),
-                        )
-                    )
+
+        # Vectorized search: build a boolean mask of matching cells.
+        mask = df.apply(
+            lambda col: col.astype("string").str.contains(needle, case=False, na=False)
+        )
+
+        # Enumerate True entries in the mask.
+        for row_idx, col_idx in zip(*mask.to_numpy().nonzero()):
+            results.append(
+                CellRef(
+                    sheet=sheet,
+                    row=int(row_idx) + 1,
+                    col=_col_idx_to_letter(int(col_idx)),
+                )
+            )
 
     return {"result": results}
 
