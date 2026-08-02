@@ -127,10 +127,10 @@ def test_find_one_csv_first_match():
 
     load(os.path.join(DATA_DIR, "test.csv"))
     result = find_one("alice")
-    assert result["found"] is True
-    assert result["sheet"] == ""
-    assert result["row"] == 2  # row 1 is header "Name", row 2 is "Alice"
-    assert result["col"] == "A"
+    assert result is not None
+    assert result.sheet == ""
+    assert result.row == 2  # row 1 is header "Name", row 2 is "Alice"
+    assert result.col == "A"
 
 
 def test_find_one_case_insensitive():
@@ -139,8 +139,8 @@ def test_find_one_case_insensitive():
 
     load(os.path.join(DATA_DIR, "test.csv"))
     result = find_one("ALICE")
-    assert result["found"] is True
-    assert result["row"] == 2
+    assert result is not None
+    assert result.row == 2
 
 
 def test_find_one_advances_cursor():
@@ -150,10 +150,10 @@ def test_find_one_advances_cursor():
     load(os.path.join(DATA_DIR, "test.csv"))
     r1 = find_one("alice")
     r2 = find_one("alice")
-    assert r1["found"] is True
-    assert r2["found"] is True
+    assert r1 is not None
+    assert r2 is not None
     # Second result should be different from first (alice_duplicate row)
-    assert r1["row"] != r2["row"] or r1["col"] != r2["col"]
+    assert r1.row != r2.row or r1.col != r2.col
 
 
 def test_find_one_not_found_resets():
@@ -163,7 +163,7 @@ def test_find_one_not_found_resets():
 
     load(os.path.join(DATA_DIR, "test.csv"))
     result = find_one("zzznomatchzzz")
-    assert result["found"] is False
+    assert result is None
     assert srv._search_pos == (0, 0, 0)
 
 
@@ -172,8 +172,7 @@ def test_find_one_no_spreadsheet_loaded():
     from spreadsheet_search_mcp.server import find_one
 
     result = find_one("test")
-    assert result["found"] is False
-    assert "error" in result
+    assert result is None
 
 
 def test_find_one_excel_multiple_sheets():
@@ -185,11 +184,11 @@ def test_find_one_excel_multiple_sheets():
     matches = []
     for _ in range(10):
         r = find_one("alice")
-        if not r["found"]:
+        if r is None:
             break
         matches.append(r)
 
-    sheets_found = {m["sheet"] for m in matches}
+    sheets_found = {m.sheet for m in matches}
     # Should have found alice in both sheets
     assert "People" in sheets_found
     assert "Products" in sheets_found
@@ -200,15 +199,16 @@ def test_find_one_excel_multiple_sheets():
 
 def test_find_all_csv():
     _reset()
-    from spreadsheet_search_mcp.server import find_all, load
+    from spreadsheet_search_mcp.server import CellRef, find_all, load
 
     load(os.path.join(DATA_DIR, "test.csv"))
     results = find_all("alice")
     # "Alice" in row 2 col A AND "alice_duplicate" in row 5 col A
     assert len(results) == 2
+    assert all(isinstance(r, CellRef) for r in results)
     for r in results:
-        assert r["sheet"] == ""
-        assert r["col"] == "A"
+        assert r.sheet == ""
+        assert r.col == "A"
 
 
 def test_find_all_returns_empty_list_when_no_match():
@@ -225,8 +225,7 @@ def test_find_all_no_spreadsheet_loaded():
     from spreadsheet_search_mcp.server import find_all
 
     results = find_all("test")
-    assert len(results) == 1
-    assert "error" in results[0]
+    assert results == []
 
 
 def test_find_all_excel_searches_all_sheets():
@@ -235,7 +234,7 @@ def test_find_all_excel_searches_all_sheets():
 
     load(os.path.join(DATA_DIR, "test.xlsx"))
     results = find_all("alice")
-    sheets_found = {r["sheet"] for r in results}
+    sheets_found = {r.sheet for r in results}
     assert "People" in sheets_found
     assert "Products" in sheets_found
 
@@ -245,63 +244,63 @@ def test_find_all_excel_searches_all_sheets():
 
 def test_get_single_cell_csv():
     _reset()
-    from spreadsheet_search_mcp.server import get_single_cell, load
+    from spreadsheet_search_mcp.server import CellRef, get_single_cell, load
 
     load(os.path.join(DATA_DIR, "test.csv"))
-    result = get_single_cell(sheet="", row=1, col="A")
+    result = get_single_cell(CellRef(sheet="", row=1, col="A"))
     assert result["value"] == "Name"
 
 
 def test_get_single_cell_csv_data_row():
     _reset()
-    from spreadsheet_search_mcp.server import get_single_cell, load
+    from spreadsheet_search_mcp.server import CellRef, get_single_cell, load
 
     load(os.path.join(DATA_DIR, "test.csv"))
-    result = get_single_cell(sheet="", row=2, col="B")
+    result = get_single_cell(CellRef(sheet="", row=2, col="B"))
     assert result["value"] == "New York"
 
 
 def test_get_single_cell_invalid_row():
     _reset()
-    from spreadsheet_search_mcp.server import get_single_cell, load
+    from spreadsheet_search_mcp.server import CellRef, get_single_cell, load
 
     load(os.path.join(DATA_DIR, "test.csv"))
-    result = get_single_cell(sheet="", row=999, col="A")
+    result = get_single_cell(CellRef(sheet="", row=999, col="A"))
     assert "error" in result
 
 
 def test_get_single_cell_invalid_col():
     _reset()
-    from spreadsheet_search_mcp.server import get_single_cell, load
+    from spreadsheet_search_mcp.server import CellRef, get_single_cell, load
 
     load(os.path.join(DATA_DIR, "test.csv"))
-    result = get_single_cell(sheet="", row=1, col="ZZ")
+    result = get_single_cell(CellRef(sheet="", row=1, col="ZZ"))
     assert "error" in result
 
 
 def test_get_single_cell_invalid_sheet():
     _reset()
-    from spreadsheet_search_mcp.server import get_single_cell, load
+    from spreadsheet_search_mcp.server import CellRef, get_single_cell, load
 
     load(os.path.join(DATA_DIR, "test.csv"))
-    result = get_single_cell(sheet="NonExistent", row=1, col="A")
+    result = get_single_cell(CellRef(sheet="NonExistent", row=1, col="A"))
     assert "error" in result
 
 
 def test_get_single_cell_no_spreadsheet():
     _reset()
-    from spreadsheet_search_mcp.server import get_single_cell
+    from spreadsheet_search_mcp.server import CellRef, get_single_cell
 
-    result = get_single_cell(sheet="", row=1, col="A")
+    result = get_single_cell(CellRef(sheet="", row=1, col="A"))
     assert "error" in result
 
 
 def test_get_single_cell_excel():
     _reset()
-    from spreadsheet_search_mcp.server import get_single_cell, load
+    from spreadsheet_search_mcp.server import CellRef, get_single_cell, load
 
     load(os.path.join(DATA_DIR, "test.xlsx"))
-    result = get_single_cell(sheet="People", row=1, col="A")
+    result = get_single_cell(CellRef(sheet="People", row=1, col="A"))
     assert result["value"] == "Name"
 
 
@@ -310,37 +309,37 @@ def test_get_single_cell_excel():
 
 def test_get_single_row_csv():
     _reset()
-    from spreadsheet_search_mcp.server import get_single_row, load
+    from spreadsheet_search_mcp.server import CellRef, get_single_row, load
 
     load(os.path.join(DATA_DIR, "test.csv"))
-    result = get_single_row(sheet="", row=1, col="A")
+    result = get_single_row(CellRef(sheet="", row=1, col="A"))
     assert result["values"] == ["Name", "City", "Score"]
 
 
 def test_get_single_row_col_ignored():
     _reset()
-    from spreadsheet_search_mcp.server import get_single_row, load
+    from spreadsheet_search_mcp.server import CellRef, get_single_row, load
 
     load(os.path.join(DATA_DIR, "test.csv"))
-    result_a = get_single_row(sheet="", row=2, col="A")
-    result_b = get_single_row(sheet="", row=2, col="C")
+    result_a = get_single_row(CellRef(sheet="", row=2, col="A"))
+    result_b = get_single_row(CellRef(sheet="", row=2, col="C"))
     assert result_a["values"] == result_b["values"]
 
 
 def test_get_single_row_invalid():
     _reset()
-    from spreadsheet_search_mcp.server import get_single_row, load
+    from spreadsheet_search_mcp.server import CellRef, get_single_row, load
 
     load(os.path.join(DATA_DIR, "test.csv"))
-    result = get_single_row(sheet="", row=999, col="A")
+    result = get_single_row(CellRef(sheet="", row=999, col="A"))
     assert "error" in result
 
 
 def test_get_single_row_no_spreadsheet():
     _reset()
-    from spreadsheet_search_mcp.server import get_single_row
+    from spreadsheet_search_mcp.server import CellRef, get_single_row
 
-    result = get_single_row(sheet="", row=1, col="A")
+    result = get_single_row(CellRef(sheet="", row=1, col="A"))
     assert "error" in result
 
 

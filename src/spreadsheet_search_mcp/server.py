@@ -150,26 +150,23 @@ def load(path: str) -> str:
 
 
 @mcp.tool
-def find_one(search: str) -> dict[str, Any]:
+def find_one(search: str) -> CellRef | None:
     """
     Find the next cell whose string representation contains *search*
     (case-insensitive).
 
-    Returns a dict with:
-    - ``found`` (bool): whether a match was found.
-    - ``sheet`` (str): sheet name (empty string for CSV files).
-    - ``row`` (int): 1-based row number.
-    - ``col`` (str): column letter (e.g. 'A').
+    Returns a ``CellRef`` (with ``sheet``, ``row``, and ``col``) when a match
+    is found, or ``None`` when no match exists or no spreadsheet is loaded.
 
     Successive calls advance the internal cursor so that repeated calls
     iterate through all matching cells.  When the end of the spreadsheet is
-    reached without a match, ``found`` is False and the cursor resets to the
+    reached without a match, ``None`` is returned and the cursor resets to the
     beginning.
     """
     global _search_pos
 
     if not _sheets:
-        return {"found": False, "error": "No spreadsheet loaded. Call load() first."}
+        return None
 
     needle = search.lower()
     si, ri, ci = _search_pos
@@ -199,32 +196,30 @@ def find_one(search: str) -> dict[str, Any]:
                     else:
                         _search_pos = (sheet_idx, row_idx, next_ci)
 
-                    return {
-                        "found": True,
-                        "sheet": sheet,
-                        "row": row_idx + 1,
-                        "col": _col_idx_to_letter(col_idx),
-                    }
+                    return CellRef(
+                        sheet=sheet,
+                        row=row_idx + 1,
+                        col=_col_idx_to_letter(col_idx),
+                    )
 
     _search_pos = (0, 0, 0)
-    return {"found": False}
+    return None
 
 
 @mcp.tool
-def find_all(search: str) -> list[dict[str, Any]]:
+def find_all(search: str) -> list[CellRef]:
     """
     Search the entire spreadsheet for cells whose string representation
     contains *search* (case-insensitive).
 
-    Returns a list of cell-reference dicts, each with keys ``sheet``,
-    ``row`` (1-based), and ``col`` (column letter).  All worksheets in an
-    Excel file are searched.
+    Returns a list of ``CellRef`` objects.  All worksheets in an Excel file
+    are searched.
     """
     if not _sheets:
-        return [{"error": "No spreadsheet loaded. Call load() first."}]
+        return []
 
     needle = search.lower()
-    results: list[dict[str, Any]] = []
+    results: list[CellRef] = []
 
     for sheet in _sheet_order:
         df = _sheets[sheet]
@@ -233,44 +228,44 @@ def find_all(search: str) -> list[dict[str, Any]]:
                 v = df.iloc[row_idx, col_idx]
                 if pd.notna(v) and needle in str(v).lower():
                     results.append(
-                        {
-                            "sheet": sheet,
-                            "row": row_idx + 1,
-                            "col": _col_idx_to_letter(col_idx),
-                        }
+                        CellRef(
+                            sheet=sheet,
+                            row=row_idx + 1,
+                            col=_col_idx_to_letter(col_idx),
+                        )
                     )
 
     return results
 
 
 @mcp.tool
-def get_single_cell(sheet: str, row: int, col: str) -> dict[str, Any]:
+def get_single_cell(cell: CellRef) -> dict[str, Any]:
     """
-    Return the value of the cell identified by *sheet*, *row* (1-based),
-    and *col* (column letter, e.g. ``'A'``).
+    Return the value of the cell identified by the given ``CellRef``.
 
     Result dict contains ``value`` on success or ``error`` on failure.
-    For CSV files use an empty string for *sheet*.
+    For CSV files set ``sheet`` to an empty string in the ``CellRef``.
     """
     if not _sheets:
         return {"error": "No spreadsheet loaded. Call load() first."}
-    return _get_cell(sheet, row, col)
+    return _get_cell(cell.sheet, cell.row, cell.col)
 
 
 @mcp.tool
-def get_single_row(sheet: str, row: int, col: str) -> dict[str, Any]:
+def get_single_row(cell: CellRef) -> dict[str, Any]:
     """
-    Return all values in the row identified by *sheet* and *row* (1-based).
+    Return all values in the row identified by the given ``CellRef``.
 
-    The *col* argument is accepted for API consistency with other cell-reference
-    tools but is ignored; the entire row is always returned.
+    The ``col`` field of the ``CellRef`` is ignored; the entire row is
+    always returned.
 
-    Result dict contains ``values`` (a list) on success or ``error`` on failure.
-    For CSV files use an empty string for *sheet*.
+    Result dict contains ``values`` (a list) on success or ``error`` on
+    failure.  For CSV files set ``sheet`` to an empty string in the
+    ``CellRef``.
     """
     if not _sheets:
         return {"error": "No spreadsheet loaded. Call load() first."}
-    return _get_row(sheet, row)
+    return _get_row(cell.sheet, cell.row)
 
 
 @mcp.tool
