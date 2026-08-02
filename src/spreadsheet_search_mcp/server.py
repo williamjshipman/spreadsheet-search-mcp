@@ -183,14 +183,11 @@ def find_one(search: str) -> dict[str, Any]:
             for col_idx in range(col_start, len(df.columns)):
                 v = df.iloc[row_idx, col_idx]
                 if pd.notna(v) and needle in str(v).lower():
-                    # Advance cursor past this cell
                     next_ci = col_idx + 1
                     if next_ci >= len(df.columns):
                         next_ri = row_idx + 1
                         if next_ri >= len(df):
                             next_si = sheet_idx + 1
-                            if next_si >= len(_sheet_order):
-                                next_si = 0
                             _search_pos = (next_si, 0, 0)
                         else:
                             _search_pos = (sheet_idx, next_ri, 0)
