@@ -127,10 +127,12 @@ def test_find_one_csv_first_match():
 
     load(os.path.join(DATA_DIR, "test.csv"))
     result = find_one("alice")
-    assert result is not None
-    assert result.sheet == ""
-    assert result.row == 2  # row 1 is header "Name", row 2 is "Alice"
-    assert result.col == "A"
+    assert "result" in result
+    cell = result["result"]
+    assert cell is not None
+    assert cell.sheet == ""
+    assert cell.row == 2  # row 1 is header "Name", row 2 is "Alice"
+    assert cell.col == "A"
 
 
 def test_find_one_case_insensitive():
@@ -139,8 +141,8 @@ def test_find_one_case_insensitive():
 
     load(os.path.join(DATA_DIR, "test.csv"))
     result = find_one("ALICE")
-    assert result is not None
-    assert result.row == 2
+    assert "result" in result
+    assert result["result"].row == 2
 
 
 def test_find_one_advances_cursor():
@@ -150,10 +152,14 @@ def test_find_one_advances_cursor():
     load(os.path.join(DATA_DIR, "test.csv"))
     r1 = find_one("alice")
     r2 = find_one("alice")
-    assert r1 is not None
-    assert r2 is not None
+    assert "result" in r1
+    assert "result" in r2
+    c1 = r1["result"]
+    c2 = r2["result"]
+    assert c1 is not None
+    assert c2 is not None
     # Second result should be different from first (alice_duplicate row)
-    assert r1.row != r2.row or r1.col != r2.col
+    assert c1.row != c2.row or c1.col != c2.col
 
 
 def test_find_one_not_found_resets():
@@ -163,7 +169,8 @@ def test_find_one_not_found_resets():
 
     load(os.path.join(DATA_DIR, "test.csv"))
     result = find_one("zzznomatchzzz")
-    assert result is None
+    assert "result" in result
+    assert result["result"] is None
     assert srv._search_pos == (0, 0, 0)
 
 
@@ -172,7 +179,7 @@ def test_find_one_no_spreadsheet_loaded():
     from spreadsheet_search_mcp.server import find_one
 
     result = find_one("test")
-    assert result is None
+    assert "error" in result
 
 
 def test_find_one_excel_multiple_sheets():
@@ -184,9 +191,9 @@ def test_find_one_excel_multiple_sheets():
     matches = []
     for _ in range(10):
         r = find_one("alice")
-        if r is None:
+        if r.get("result") is None:
             break
-        matches.append(r)
+        matches.append(r["result"])
 
     sheets_found = {m.sheet for m in matches}
     # Should have found alice in both sheets
@@ -202,7 +209,9 @@ def test_find_all_csv():
     from spreadsheet_search_mcp.server import CellRef, find_all, load
 
     load(os.path.join(DATA_DIR, "test.csv"))
-    results = find_all("alice")
+    result = find_all("alice")
+    assert "result" in result
+    results = result["result"]
     # "Alice" in row 2 col A AND "alice_duplicate" in row 5 col A
     assert len(results) == 2
     assert all(isinstance(r, CellRef) for r in results)
@@ -216,16 +225,17 @@ def test_find_all_returns_empty_list_when_no_match():
     from spreadsheet_search_mcp.server import find_all, load
 
     load(os.path.join(DATA_DIR, "test.csv"))
-    results = find_all("zzznomatchzzz")
-    assert results == []
+    result = find_all("zzznomatchzzz")
+    assert "result" in result
+    assert result["result"] == []
 
 
 def test_find_all_no_spreadsheet_loaded():
     _reset()
     from spreadsheet_search_mcp.server import find_all
 
-    results = find_all("test")
-    assert results == []
+    result = find_all("test")
+    assert "error" in result
 
 
 def test_find_all_excel_searches_all_sheets():
@@ -233,8 +243,9 @@ def test_find_all_excel_searches_all_sheets():
     from spreadsheet_search_mcp.server import find_all, load
 
     load(os.path.join(DATA_DIR, "test.xlsx"))
-    results = find_all("alice")
-    sheets_found = {r.sheet for r in results}
+    result = find_all("alice")
+    assert "result" in result
+    sheets_found = {r.sheet for r in result["result"]}
     assert "People" in sheets_found
     assert "Products" in sheets_found
 

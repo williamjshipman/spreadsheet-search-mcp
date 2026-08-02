@@ -150,23 +150,24 @@ def load(path: str) -> str:
 
 
 @mcp.tool
-def find_one(search: str) -> CellRef | None:
+def find_one(search: str) -> dict[str, Any]:
     """
     Find the next cell whose string representation contains *search*
     (case-insensitive).
 
-    Returns a ``CellRef`` (with ``sheet``, ``row``, and ``col``) when a match
-    is found, or ``None`` when no match exists or no spreadsheet is loaded.
+    Returns a dict with a ``result`` key containing a ``CellRef`` when a match
+    is found, or ``None`` when no match exists.  Returns a dict with an
+    ``error`` key when no spreadsheet is loaded.
 
     Successive calls advance the internal cursor so that repeated calls
     iterate through all matching cells.  When the end of the spreadsheet is
-    reached without a match, ``None`` is returned and the cursor resets to the
-    beginning.
+    reached without a match, ``result`` is ``None`` and the cursor resets to
+    the beginning.
     """
     global _search_pos
 
     if not _sheets:
-        return None
+        return {"error": "No spreadsheet loaded. Call load() first."}
 
     needle = search.lower()
     si, ri, ci = _search_pos
@@ -196,27 +197,30 @@ def find_one(search: str) -> CellRef | None:
                     else:
                         _search_pos = (sheet_idx, row_idx, next_ci)
 
-                    return CellRef(
-                        sheet=sheet,
-                        row=row_idx + 1,
-                        col=_col_idx_to_letter(col_idx),
-                    )
+                    return {
+                        "result": CellRef(
+                            sheet=sheet,
+                            row=row_idx + 1,
+                            col=_col_idx_to_letter(col_idx),
+                        )
+                    }
 
     _search_pos = (0, 0, 0)
-    return None
+    return {"result": None}
 
 
 @mcp.tool
-def find_all(search: str) -> list[CellRef]:
+def find_all(search: str) -> dict[str, Any]:
     """
     Search the entire spreadsheet for cells whose string representation
     contains *search* (case-insensitive).
 
-    Returns a list of ``CellRef`` objects.  All worksheets in an Excel file
-    are searched.
+    Returns a dict with a ``result`` key containing a list of ``CellRef``
+    objects.  All worksheets in an Excel file are searched.  Returns a dict
+    with an ``error`` key when no spreadsheet is loaded.
     """
     if not _sheets:
-        return []
+        return {"error": "No spreadsheet loaded. Call load() first."}
 
     needle = search.lower()
     results: list[CellRef] = []
@@ -235,7 +239,7 @@ def find_all(search: str) -> list[CellRef]:
                         )
                     )
 
-    return results
+    return {"result": results}
 
 
 @mcp.tool
